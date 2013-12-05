@@ -50,5 +50,6 @@
                     (not (unstaged-changes git-dir))
                     (not (uncommitted-changes git-dir)))
                  tag
-                 (let [[[_ stem lst]] (re-seq #"(.*\.)(.*)" tag)]
-                   (join [stem (inc (read-string lst)) "-" "SNAPSHOT"]))))))))))
+                 (let [[[_ stem lst affix]] (re-seq #"(.*\.)(.[^-]*)(-.*)?" tag)]
+                  
+                   (join [stem (inc (read-string lst)) affix "-" "SNAPSHOT"]))))))))))
