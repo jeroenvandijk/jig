@@ -109,12 +109,14 @@ be included in a production build of the application."
 (defn init
   "Creates and initializes the system in the Var #'system."
   []
-  (alter-var-root #'system #(system/init % (config))))
+  (alter-var-root #'system #(system/init % (config)))
+  :initialized)
 
 (defn start
   "Starts the system running, updates the Var #'system."
   []
-  (alter-var-root #'system system/start))
+  (alter-var-root #'system system/start)
+  :started)
 
 (defn stop
   "Stops the system if it is currently running, updates the Var
@@ -122,7 +124,8 @@ be included in a production build of the application."
   []
   (alter-var-root
    #'system
-   (fn [s] (when s (system/stop s)))))
+   (fn [s] (when s (system/stop s))))
+  :stopped)
 
 (defn go
   "Initializes and starts the system running."
