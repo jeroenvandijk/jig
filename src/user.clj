@@ -23,7 +23,7 @@ be included in a production build of the application."
   (:require
    [clojure.java.io :as io]
    [clojure.java.javadoc :refer (javadoc)]
-   [clojure.java.jmx :as jmx]
+   #_[clojure.java.jmx :as jmx]
    [clojure.pprint :refer (pprint)]
    [clojure.reflect :refer (reflect)]
    [clojure.repl :refer (apropos dir doc find-doc pst source)]
@@ -34,8 +34,8 @@ be included in a production build of the application."
    [loom.io :refer (view)]
    [clojure.tools.namespace.repl :refer (refresh refresh-all)]
    [jig.system :as system]
-   jig.jmx)
-  (:import (jig.jmx CustomMBean)))
+   #_jig.jmx)
+  #_(:import (jig.jmx CustomMBean)))
 
 (def system
   "A Var containing an object representing the application under

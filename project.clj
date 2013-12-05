@@ -21,9 +21,12 @@
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.5.1"]
-                 [org.clojure/clojurescript "0.0-2030"]
+                 #_[org.clojure/clojurescript "0.0-2030"
+                  :exclusions
+                  ;; Conflicts with Riemanns protobuf dep
+                  [com.google.protobuf/protobuf-java]]
                  ;; core.async
-                 [org.clojure/core.async "0.1.256.0-1bf8cf-alpha"]
+                 #_[org.clojure/core.async "0.1.256.0-1bf8cf-alpha"]
                  ;; Leiningen
                  [leiningen-core "2.3.2" :exclusions [org.clojure/tools.nrepl]]
                  ;; Tracing
@@ -36,22 +39,22 @@
                  [org.slf4j/log4j-over-slf4j "1.7.2"]
                  ;; Graph algorithms for dependency graphs
                  [jkkramer/loom "0.2.0"]
-                 [io.pedestal/pedestal.service ~pedestal-version]
+                 #_[io.pedestal/pedestal.service ~pedestal-version]
                  ;; (with jetty)
-                 [io.pedestal/pedestal.jetty "0.1.10"]
+                 #_[io.pedestal/pedestal.jetty "0.1.10"]
                  ;; JMX
-                 [org.clojure/java.jmx "0.2.0"]
+                 #_[org.clojure/java.jmx "0.2.0"]
                  ;; nREPL
-                 [org.clojure/tools.nrepl "0.2.3"]
+                 #_[org.clojure/tools.nrepl "0.2.3"]
                  ;; Tools namespace
                  [org.clojure/tools.namespace "0.2.4"]
                  ;; Back, by popular demand, Ring!
-                 [ring "1.2.0"]
-                 [compojure "1.1.5"]
+                 #_[ring "1.2.0"]
+                 #_[compojure "1.1.5"]
                  ;; MQTT for messaging
-                 [clojurewerkz/machine_head "1.0.0-beta4"]
+                 #_[clojurewerkz/machine_head "1.0.0-beta4"]
                  ;; Pedestal integration needs java.classpath to find ^:shared namespaces
-                 [io.pedestal/pedestal.app-tools ~pedestal-version]
+                 #_[io.pedestal/pedestal.app-tools ~pedestal-version]
                  [org.clojure/java.classpath "0.2.0"]
                  ]
 
@@ -59,5 +62,6 @@
 
   :repl-options {:prompt (fn [ns] (str "Jig " ns "> "))
                  :welcome (user/welcome)
-                 :nrepl-middleware [jig.nrepl/wrap-jig-loader]}
+                 ;:nrepl-middleware [jig.nrepl/wrap-jig-loader]
+                 }
   )
