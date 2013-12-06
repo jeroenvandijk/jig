@@ -12,15 +12,12 @@
 (ns sudoku.jig
   (:require
    jig
-   [sudoku :refer (handler)]
-   [jig.web.ring :refer (add-handler)])
+   [sudoku :refer (sudoku-routes)])
   (:import (jig Lifecycle)))
 
-(deftype Website [config]
+(defrecord Website [name description uri puzzle] 
   Lifecycle
-  (init [_ system]
-    (-> system
-        (add-handler handler config)
-        (update-in [:jig/examples] conj config)))
-  (start [_ system] system)
-  (stop [_ system] system))
+  (init [this system]
+    (assoc this :handler (sudoku-routes puzzle)))
+  (start [this system] this)
+  (stop [this system] this))

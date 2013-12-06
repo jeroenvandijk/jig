@@ -38,16 +38,16 @@
                                    (apply interleave) (partition 3)
                                    (map (partial apply concat))))))))
 
-(defroutes handler
-  (GET "/sudoku.html" [:as req]
-    {:status 200
-     :body
-     (let [puzzle (-> req :jig/config :puzzle)]
-       (html
-        [:html
-         [:head [:title "Sudoku"]]
-         [:body
-          [:style " table { border: 1px solid black;
+(defn sudoku-routes [puzzle]
+  (routes
+   (GET "/sudoku.html" [:as req]
+        {:status 200
+         :body
+         (html
+          [:html
+           [:head [:title "Sudoku"]]
+           [:body
+            [:style " table { border: 1px solid black;
                 border-collapse: collapse } td { width: 20px; height:
                 20px; text-align: center } td { border: 1px solid grey;
                 } td:nth-child(1) { border-left: 2px solid black; }
@@ -59,34 +59,33 @@
                 tr:nth-child(7) { border-top: 2px solid black; }
                 tr:nth-child(9) { border-bottom: 2px solid black; }"]
 
-          [:h2 "Sudoku"]
+            [:h2 "Sudoku"]
 
-          [:h3 "Puzzle"]
+            [:h3 "Puzzle"]
 
-          [:table
-           (for [row (partition 9 puzzle)]
-             [:tr
-              (for [el row]
-                [:td
-                 (if (and (number? el) (pos? el)) el)])])]
+            [:table
+             (for [row (partition 9 puzzle)]
+               [:tr
+                (for [el row]
+                  [:td
+                   (if (and (number? el) (pos? el)) el)])])]
 
-          [:h3 "Solution"]
+            [:h3 "Solution"]
 
-          [:table
-           (for [row (partition 9 (solve puzzle))]
-             [:tr
-              (for [el row]
-                [:td
-                 (if (and (number? el) (pos? el)) el)])])]
+            [:table
+             (for [row (partition 9 (solve puzzle))]
+               [:tr
+                (for [el row]
+                  [:td
+                   (if (and (number? el) (pos? el)) el)])])]
 
-          ]]))})
-  (GET "/test.html" [:as req]
-    {:status 200
-     :body (html
-            [:html
-             [:body
-              [:p "System keys are " ]
-              [:pre (str (keys (:jig/system req)))]
-              [:p "Config is" ]
-              [:pre (with-out-str (pprint (:jig/config req)))]
-              ]])}))
+            ]])})
+   (GET "/test.html" [:as req]
+        {:status 200
+         :body (html
+                [:html
+                 [:body
+                  [:p "System keys are " ]
+                  [:pre (str (keys (:jig/system req)))]
+                  [:p "Config is" ]
+                  [:pre (with-out-str (pprint (:jig/config req)))]]])})))

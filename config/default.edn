@@ -10,9 +10,10 @@
    :sudoku
     {:jig/component sudoku.jig/Website
      :jig/project "examples/sudoku/project.clj"
-     :name "Sudoku"
+     :jig/config { 
+       :name "Sudoku"
      :description "A difficult Sudoku grid solved using core.logic. Renders the grid using Hiccup and serves it via Ring."
-     :jig.example/uri "http://localhost:8091/sudoku.html"
+     :uri "http://localhost:8091/sudoku.html"
      ;; This puzzle is Copyright AI SUDOKU.
      ;; I have interpreted this usage to fall under 'research purposes'
      ;; which is allowed http://www.aisudoku.com/index_en.html
@@ -26,7 +27,7 @@
 
               0 0 1 0 0 0 0 6 8
               0 0 8 5 0 0 0 1 0
-              0 9 0 0 0 0 4 0 0]}
+              0 9 0 0 0 0 4 0 0]}}
 
     ;; Note the change in the dependency order - Jetty depends on
     ;; Compojure (for it's handler), while Compojure depends on handlers
@@ -34,12 +35,20 @@
 
     :compojure
     {:jig/component jig.web.ring/Compojure
-     :jig/dependencies [:sudoku]}
+     :jig/config {:handlers [{:jig/dependency :sudoku}]}
+     :jig/dependencies [:sudoku]
+     
+          :jig/project "examples/sudoku/project.clj"
+     }
 
     :jetty
     {:jig/component jig.web.ring/Jetty
+     :jig/config {:handler {:jig/dependency :compojure}  :config {}}
      :jig/dependencies [:compojure]
-     :port 8091}
+     :port 8091
+     
+     :jig/project "examples/sudoku/project.clj"
+    }
 
     }
    

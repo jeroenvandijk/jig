@@ -63,7 +63,7 @@
     (with-context-classloader ~cl
       ~@body)))
 
-(defn instantiate [{id :jig/id component :jig/component project :jig/project :as config}]
+(defn instantiate [{id :jig/id component :jig/component project :jig/project config :jig/config dependencies :jig/dependencies} components]
   (when (nil? component)
     (throw (ex-info (format "Component is nil in config: %s" config) config)))
   (debugf "Resolving namespace: %s" (symbol (namespace component)))
@@ -72,19 +72,34 @@
     (throw (ex-info (format "Namespace not found: %s" (symbol (namespace component)))
                     {})))
   (with-classloader (:classloader project)
-    (require (symbol (namespace component)))
-    (debugf "Instantiating component: %s" id)
-    (let [typ (ns-resolve (symbol (namespace component)) (symbol (name component)))]
-      (when (nil? typ) (throw (Exception. (format "Cannot find component: %s" component))))
-      (let [ctr (.getConstructor typ (into-array Class [Object]))]
-        (when (nil? ctr)
-          (throw (Exception. (format "Component must have a no-arg constructor: %s" component))))
-        (.newInstance ctr (into-array [config]))))))
+    (let [nmspc (symbol (namespace component))
+          _ (require nmspc)
+          _ (debugf "Instantiating component: %s" id)
+          record-constructor-name (str "map->" (name component))
+          construct-fn (ns-resolve (symbol (namespace component)) (symbol record-constructor-name))]
+      (when (nil? construct-fn) (throw (Exception. (format "Cannot find record constructor : %s" record-constructor-name))))
+      (let [fields (keys (construct-fn {}))
+            deps (into {} (map (fn [k] (when-let [dep (get components k)] [k dep])) dependencies))
+            config (clojure.walk/postwalk (fn [x]
+                                            (if-let [dep (get x :jig/dependency)]
+                                              (or (get-in deps [dep :jig/instance])
+                                                  (throw (ex-info (str "No dependency " dep " available") deps)))
+                                              x)) config)
+            ]
+        (when (not= (set (keys config)) (set fields))
+          (throw (ex-info (str "Config for " id " should contain all necessary keys: " (clojure.string/join ", " fields)
+                               ", but has: "(clojure.string/join ", " (keys config)))
+                          {:config  :available})))
+        (construct-fn config)))))
+
+(defn map-deps [components]
+  (map (fn [[k v]] (if-let [deps (:jig/dependencies v)] [k deps] [k []])) components))
 
 (defn get-digraph [components]
   (->> components
-       (map (fn [[k v]] (if-let [deps (:jig/dependencies v)] [k deps] [k []])))
-       (into {}) digraph))
+       map-deps
+       (into {})
+       digraph))
 
 (defn get-dependency-order [components]
   (let [g (get-digraph components)]
@@ -184,6 +199,8 @@ helpful in avoiding repeated expensive analysis of project files"
   [{projects :jig/projects safe :jig/safe :as system}
    {project-confs :jig/projects components :jig/components :as config}]
 
+
+
   (let [extract-prj (comp :jig/project second)
         extract-cfile (comp (memfn getCanonicalFile)
                             io/file extract-prj)
@@ -196,7 +213,7 @@ helpful in avoiding repeated expensive analysis of project files"
               (map (fn [[file entries]]
                      (project-struct file (map first entries)
                                      (first (filter #(= file (some->> % :jig/project io/file (.getCanonicalFile)))
-                         project-confs))))))
+                                                    project-confs))))))
 
          (not= config (:jig/config system))
          (doall (map (comp reload-project refresh-project) projects))
@@ -212,48 +229,49 @@ helpful in avoiding repeated expensive analysis of project files"
 
     (debugf "Projects are: %s" projects)
 
-    (let [component-instances (for [id (get-dependency-order components)]
-                                (if-let [c (get components id)]
-                                  (let [project (compid->project id)
-                                        c++ (assoc c
-                                              :jig/id id
-                                              :jig/project project)]
-                                    (assoc c++ :jig/instance (instantiate c++)))
-                                  (throw
-                                   (ex-info
-                                    (format "Component '%s' referenced as a dependency but is not contained in the map" id)
-                                    {:id id}))))
-          component-order (map :jig/id component-instances)]
-
+    (let [component-order (get-dependency-order components)
+          components
+          (reduce (fn [comps id]
+                    (if-let [c (get components id)]
+                      (let [project (compid->project id)
+                            c++ (assoc c
+                                  :jig/id id
+                                  :jig/project project)]
+                        (assoc comps id (assoc c++ :jig/instance (.init (instantiate c++ comps) {}))))
+                      (throw
+                       (ex-info
+                        (format "Component '%s' referenced as a dependency but is not contained in the map" id)
+                        {:id id}))))
+                  {} component-order)]
       (debugf "Components order is %s" (apply str (interpose ", " component-order)))
 
       ;; Projects must have a structure, like 'last seen time', etc..
-
       (let [seed {:jig/components {}
                   :jig/config config
                   :jig/projects projects
                   :jig/safe safe
                   :jig/component-order component-order}
             system
-            (reduce (fn [system component]
-                      (if-not (= (:jig/enabled component) false)
-                        (with-classloaders (some->> component :jig/project :classloader)
-                          (try
+            (reduce (fn [system component-key]
+                      (let [component (get components component-key)]
+                        (if-not (= (:jig/enabled component) false)
+                          (with-classloaders (some->> component :jig/project :classloader)
                             (try
-                              (-> (.init (:jig/instance component) system)
-                                  (validate-system component "init")
-                                  (assoc-in [:jig/components (:jig/id component)] component))
-                              (catch clojure.lang.ExceptionInfo e
-                                (errorf "ExceptionInfo: %s %s" (.getMessage e) (ex-data e))
-                                (throw e)))
-                            (catch Throwable t
-                              (errorf t "Failed to initialize component: %s" (:jig/id component))
-                              ;; Tell the repl
-                              (println "Component failed to initialize (check the logs):" (:jig/id component))
-                              (update-in system [:jig/components-failed-init] conj component)
-                              )))
-                        system))
-                    seed component-instances)]
+                              (try
+                                (-> system; (.init (:jig/instance component) system)
+                                    (validate-system component "init")
+                                    (assoc-in [:jig/components component-key] component))
+                                (catch clojure.lang.ExceptionInfo e
+                                  (errorf "ExceptionInfo: %s %s" (.getMessage e) (ex-data e))
+                                  (throw e)))
+                              (catch Throwable t
+                                (errorf t "Failed to initialize component: %s" (:jig/id component))
+                                ;; Tell the repl
+                                (println "Component failed to initialize (check the logs):" (:jig/id component))
+                                (update-in system [:jig/components-failed-init] conj component)
+                                )))
+                          system)))
+                    seed component-order)]
         (debugf
          "After system initialization, system keys are %s"
          (apply str (interpose ", " (keys system))))
@@ -274,9 +292,12 @@ helpful in avoiding repeated expensive analysis of project files"
                  (try
                    (try
                      (infof "Starting component '%s'" (:jig/id component))
-                     (-> (.start (:jig/instance component) system)
-                         (validate-system component "start")
-                         (assoc-in [:jig/components component-key] component))
+                     (-> (assoc-in system [:jig/components component-key]
+                                   (assoc component :jig/instance
+                                          (.start (:jig/instance component) system)))
+                        ; (validate-system component "start")
+                         ;(assoc-in [:jig/components component-key] component)
+                         )
                      (catch clojure.lang.ExceptionInfo e
                        (errorf "ExceptionInfo: %s %s" (.getMessage e) (ex-data e))
                        (throw e)))
@@ -308,9 +329,8 @@ helpful in avoiding repeated expensive analysis of project files"
               (try
                 (try
                   (infof "Stopping component '%s'" (:jig/id component))
-                  (println "component" component)
-                  (-> (.stop (:jig/instance component) system)
-                      (validate-system component "stop"))
+                  (assoc-in system [:jig/components component-key]
+                            (assoc component :jig/instance (.stop (:jig/instance component) system)))
                   (catch clojure.lang.ExceptionInfo e
                     (errorf "ExceptionInfo: %s %s" (.getMessage e) (ex-data e))
                     (throw e)))
