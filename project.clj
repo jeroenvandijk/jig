@@ -49,8 +49,8 @@
                  ;; Tools namespace
                  [org.clojure/tools.namespace "0.2.4"]
                  ;; Back, by popular demand, Ring!
-                 [ring "1.2.0"]
-                 [compojure "1.1.5"]
+                 ;[ring "1.2.0"]
+                 ;[compojure "1.1.5"]
                  ;; MQTT for messaging
                  #_[clojurewerkz/machine_head "1.0.0-beta4"]
                  ;; Pedestal integration needs java.classpath to find ^:shared namespaces
